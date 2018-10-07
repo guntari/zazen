@@ -1,5 +1,4 @@
 #!/bin/sh
-# emile@guntari.com
 
 #-----------------------------------------------------------------------------#  
 #                                                                             #
@@ -10,7 +9,6 @@
 #     .:,,,,,,,,, .'           `. .:,,,,,,,,, |___________ |          ``|     #
 #                                                                             #
 #                                                                             #
-#     Author: Emile Mercier                                                   #
 #-----------------------------------------------------------------------------#  
 
 # zazen
@@ -18,17 +16,7 @@
 #   -t time in minutes
 #   -k kill any running instances of zazen
 #
-#   sounds are located in /home/kapu/mySounds/zen/undo
-#
 PROGNAME=$0
-
-
-finish() {
-    rm -f /tmp/zazen_is_running
-    rm -f /tmp/zazen_request
-    exit
-}
-
 
 usage() {
   cat << EOF >&2
@@ -40,6 +28,24 @@ EOF
   exit 1
 }
 
+finish() {
+    rm -f /tmp/zazen_is_running
+    rm -f /tmp/zazen_request
+    exit
+}
+
+playStartBell() {
+    mplayer -really-quiet -softvol -volume 20 /home/kapu/mySounds/zen/undo/edited/begin_daikei.wav
+}
+
+playIntervalBell() {
+    mplayer -really-quiet -softvol -volume 30 /home/kapu/mySounds/zen/PlumVillage_bell.000.wav
+}
+
+playEndBell() {
+    mplayer -really-quiet -softvol -volume 100 /home/kapu/mySounds/zen/390201__ganapataye__02-bells.aiff
+}
+
 trap finish INT
 trap finish EXIT
 
@@ -49,7 +55,6 @@ if [[ $# -eq 0 ]] ; then
     exit 0
 fi
 
-# get state
 # is play interval enabled/disabled?
 if [[ -f /var/lib/zazen/zazen_interval_boolean ]] ; then
     echo zazen_interval_boolean found
@@ -105,19 +110,19 @@ if [ "$prep" != none ]; then
 mplayer "$prepSound"
 fi
 
-#mplayer /home/kapu/mySounds/zen/47665__arnaud-coutancier__tibetan-bowl-bol-tibet-attac.wav
 startTimestamp=`date +%s`
-mplayer -really-quiet -softvol -volume 20 /home/kapu/mySounds/zen/undo/edited/begin_daikei.wav
-#mplayer -softvol -volume 110 /home/kapu/mySounds/zen/79119__kabit__bell-nikko.wav
+playStartBell
 
 if [[ "foo$zazen_interval_boolean" == fooenabled ]];then
-    interval=5 #minutes between intervals
+    interval=5 #minutes between interval bells
     endtime=$(( $startTimestamp + $(($duration * 60)) ))
-    if [ $duration -ge $interval ];then
+
+    # if seconds left to end -gt seconds in an interval, play sound
+    if [ $(( $endtime - `date +%s` )) -gt $(( $interval * 60 )) ] ; then
         while sleep $(($interval * 60));do
-            duration=$(($duration - $interval))
-            mplayer -really-quiet -softvol -volume 30 /home/kapu/mySounds/zen/PlumVillage_bell.000.wav
-            if [ $duration -le $interval ];then # -le so that we don't play interval bell right before end bell
+            playIntervalBell
+            # if seconds left to end -le seconds in an interval, break
+            if [ $(( $endtime - `date +%s`)) -le $(( $interval * 60 )) ]; then # -le so that we don't play interval bell right before end bell
                 break
             fi
         done
@@ -130,16 +135,10 @@ else
     sleep $(($duration * 60))
 fi
 
-#mplayer /home/kapu/mySounds/zen/47665__arnaud-coutancier__tibetan-bowl-bol-tibet-attac.wav
-#mplayer /home/kapu/mySounds/zen/undo/edited/end_sodo_bell.wav
-#mplayer -softvol -volume 110 /home/kapu/mySounds/zen/undo/edited/end_sodo_bell.wav
-#mplayer -softvol -volume 110 /home/kapu/mySounds/zen/79119__kabit__bell-nikko_EDIT_lastBell.wav
-#mplayer -softvol -volume 110 /home/kapu/mySounds/zen/ShantidevaCenter.wav
-#mplayer -softvol -volume 130 /home/kapu/mySounds/zen/PlumVillage.wav
-#mplayer -softvol -volume 100 /home/kapu/mySounds/zen/PlumVillage_bell.001.wav
-mplayer -softvol -volume 100 /home/kapu/mySounds/zen/390201__ganapataye__02-bells.aiff
-#mplayer -softvol -volume 610 /home/kapu/mySounds/zen/zen_flesh_zen_bones.wav
-#mplayer -softvol -volume 610 /home/kapu/mySounds/zen/zen_flesh_zen_bones_X2.wav
+# Play exit bell
+playEndBell
+
+# clean up
 rm -f /tmp/zazen_request
 
 
